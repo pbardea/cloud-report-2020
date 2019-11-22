@@ -22,6 +22,7 @@ import (
 var ioSkip = flag.Bool("io-skip", false, "skip the IO tests, which take a long time to run.")
 var ioOnly = flag.Bool("io-only", false, "only run the IO tests.")
 var loadOnly = flag.Bool("load-only", false, "load the scripts but do not run the benchmarks.")
+var iperfOnly = flag.Bool("iperf-only", false, "only run the network throughput tests.")
 var iterations = flag.Int("iterations", 1, "run the benchmarks on the same machines {iterations} number of times.")
 var cloudDetailsFile = flag.String("cloudDetails", "./cloudDetails/default.json", "run tests against specified input, which will be loaded into clouds")
 var crlUsername = flag.String("u", "", "CRL username, if different from `whoami`")
@@ -123,9 +124,21 @@ var benchmarks = []benchmark{
 				arg:  argNode1InternalIP,
 				node: 2,
 			},
+			{
+				name: "client",
+				file: "./scripts/gen/network-iperf-client.sh",
+				arg:  argNode1InternalIP,
+				node: 3,
+			},
+			{
+				name: "client",
+				file: "./scripts/gen/network-iperf-client.sh",
+				arg:  argNode1InternalIP,
+				node: 4,
+			},
 		},
 		artifacts: []artifact{
-			{"~/network-iperf-client.log", 2},
+			{"~/network-iperf-server.log", 1},
 		},
 	},
 	{
@@ -320,7 +333,7 @@ func (p platformRunner) init(f *os.File) {
 	runCmd(f, "zip", "-FSro", "./scripts.zip", "./scripts")
 
 	fmt.Fprintf(f, "Putting and prepping scripts...\n")
-	for nodeID := 1; nodeID < p.clusterSize; nodeID++ {
+	for nodeID := 1; nodeID < p.clusterSize + 1; nodeID++ {
 		dest := p.nodeIDToHostname(nodeID)
 		p.upload(f, dest, "scripts.zip")
 		p.upload(f, dest, "init.sh")
@@ -350,7 +363,7 @@ func (p platformRunner) run(
 	fmt.Fprintf(f, "Running benchmarks for %s\n", resultsPath)
 
 	for _, b := range benchmarks {
-		if (*ioSkip && b.name == "io") || (*ioOnly && b.name != "io") {
+		if (*ioSkip && b.name == "io") || (*ioOnly && b.name != "io") || (*iperfOnly && b.name != "iperf") {
 			continue
 		}
 
@@ -452,7 +465,7 @@ func createCluster(clusterPrefix string, cloudName string, machineType string, e
 	// Roachprod cluster names cannot contain dots or underscores; convert all of them to dashes.
 	validClusterName := regexp.MustCompile(`[\.|\_]`)
 	clusterName = validClusterName.ReplaceAllString(clusterName, "-")
-	clusterSize := 2
+	clusterSize := 4
 	fmt.Printf("\nChecking for existing cluster %s...\n", clusterName)
 	if runCmdFindString(os.Stdout, clusterName, "roachprod", "list") {
 		fmt.Println("Found existing cluster")
