@@ -37,11 +37,11 @@ var node2InternalIP = flag.String("node2-internal", "", "The internal IP address
 
 // These consts represent all of the arguments that
 const (
-	argNode2InternalIP = "node2IP"
+	argNode1InternalIP = "node1IP"
 	argCloudName       = "cloudName"
 )
 
-var argConstArr = []string{argNode2InternalIP, argCloudName}
+var argConstArr = []string{argNode1InternalIP, argCloudName}
 
 // checkForAllArgs checks that all of the expected values are present
 // in the argVals map passed to platformRunner.run().
@@ -95,10 +95,10 @@ var benchmarks = []benchmark{
 		name: "ping",
 		routines: []benchmarkRoutine{{
 			file: "./scripts/gen/network-ping.sh",
-			arg:  argNode2InternalIP,
-			node: 1,
+			arg:  argNode1InternalIP,
+			node: 2,
 		}},
-		artifacts: []artifact{{"~/network-ping.log", 1}},
+		artifacts: []artifact{{"~/network-ping.log", 2}},
 	},
 	{
 		name: "cpu",
@@ -115,17 +115,17 @@ var benchmarks = []benchmark{
 				name:              "server",
 				file:              "./scripts/gen/network-iperf-server.sh",
 				launchAsGoroutine: true,
-				node:              2,
+				node:              1,
 			},
 			{
 				name: "client",
 				file: "./scripts/gen/network-iperf-client.sh",
-				arg:  argNode2InternalIP,
-				node: 1,
+				arg:  argNode1InternalIP,
+				node: 2,
 			},
 		},
 		artifacts: []artifact{
-			{"~/network-iperf-client.log", 1},
+			{"~/network-iperf-client.log", 2},
 		},
 	},
 	{
@@ -429,7 +429,7 @@ func roachprodRun(cloudName, clusterPrefix, machineType string, ebs bool) {
 	roachprodRunner.init(initLog)
 	argVals := map[string]string{
 		argCloudName:       cloudName,
-		argNode2InternalIP: runCmdReturnString(initLog, "roachprod", "ip", clusterName+":2"),
+		argNode1InternalIP: runCmdReturnString(initLog, "roachprod", "ip", clusterName+":1"),
 	}
 
 	runLogPath := fmt.Sprintf("logs/%s/%s/%s/run", cloudName, machineType, dateString)
@@ -546,15 +546,15 @@ func onPremRun(username string) {
 	}
 
 	if *node2InternalIP == "" {
-		argVals[argNode2InternalIP] = runCmdReturnString(initWriter, "ssh", node2, "./scripts/on-prem/get-internal-ip.sh")
+		argVals[argNode1InternalIP] = runCmdReturnString(initWriter, "ssh", node1, "./scripts/on-prem/get-internal-ip.sh")
 
-		if !isIPWellFormed(argVals[argNode2InternalIP]) {
-			log.Fatal("Cannot automatically detect node 2 internal IP; please run again with -node2-internal=<node2's internal IP address>")
+		if !isIPWellFormed(argVals[argNode1InternalIP]) {
+			log.Fatal("Cannot automatically detect node 1 internal IP; please run again with -node2-internal=<node2's internal IP address>")
 		}
-		fmt.Fprintf(initWriter, "Node 2 internal IP address detected as %s", argVals[argNode2InternalIP])
+		fmt.Fprintf(initWriter, "Node 2 internal IP address detected as %s", argVals[argNode1InternalIP])
 
 	} else {
-		argVals[argNode2InternalIP] = *node2InternalIP
+		argVals[argNode1InternalIP] = *node2InternalIP
 	}
 
 	for i := 0; i < *iterations; i++ {
